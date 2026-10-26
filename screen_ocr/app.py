@@ -145,10 +145,18 @@ def run_once(lang: str, save: bool = True, server=None) -> None:
     from .ocr import recognize
     from .overlay import RegionSelector
 
+    # One overlay at a time. Two (a second listener, a desktop shortcut as well, a double press)
+    # stack up, each grabbing the mouse and keyboard: clicks and Esc reach the hidden one, and it
+    # takes a capture per overlay to get the screen back.
+    lock = _overlay_lock()
+    if lock is None:
+        return
+
     root = tk.Tk()
     root.withdraw()
 
     def on_selected(image):
+        lock.close()  # the overlay is gone; OCR and sending needn't hold up the next capture
         try:
             if image is None:
                 return
@@ -185,6 +193,22 @@ def run_once(lang: str, save: bool = True, server=None) -> None:
         root.mainloop()
     except KeyboardInterrupt:
         pass
+
+
+def _overlay_lock():
+    """An open file holding the overlay lock, or None when another screen-ocr's overlay is up.
+    The lock goes with the process, so a crashed overlay never blocks the next one."""
+    import tempfile
+    path = os.path.join(tempfile.gettempdir(), f"screen-ocr-{os.getuid()}.lock")
+    f = open(path, "w")
+    try:
+        import fcntl
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        f.close()
+        print("an overlay is already open", file=sys.stderr)
+        return None
+    return f
 
 
 def _save(text, image, server=None, category=None) -> None:

@@ -38,7 +38,7 @@ screen-ocr --hotkey '<cmd>+<shift>+o' --lang jpn   # restrict to one language
 screen-ocr --once                 # capture right away, then exit
 ```
 
-Drag to select. Esc or right-click cancels. When it finishes, a notification shows what was copied.
+Drag to select. Esc or right-click cancels, and so does a minute left untouched. Only one selection is open at a time: pressing the hotkey again while one is up does nothing. When it finishes, a notification shows what was copied.
 If the selection has no text in it (a face, a photo, an icon), you get it as ASCII art instead.
 
 ### History

@@ -12,6 +12,7 @@ from .capture import Shot
 
 ACCENT = "#4cc2ff"
 MIN_SIZE = 4
+IDLE_CANCEL_MS = 60_000  # the overlay holds the mouse and keyboard: never keep them past a minute untouched
 
 
 class RegionSelector:
@@ -51,11 +52,28 @@ class RegionSelector:
         c.bind("<B1-Motion>", self._drag)
         c.bind("<ButtonRelease-1>", self._release)
         c.bind("<ButtonPress-3>", lambda _e: self._finish(None))
-        win.bind("<Escape>", lambda _e: self._finish(None))
+        c.bind("<Motion>", lambda _e: self._awake())
+        # on the whole app, not just this window: Esc must cancel even when focus landed elsewhere
+        root.bind_all("<Escape>", lambda _e: self._finish(None))
 
+        self.idle = win.after(IDLE_CANCEL_MS, lambda: self._finish(None))
+        self.tries = 0
         win.after(30, self._take_focus)
 
+    def _awake(self):
+        if self.done:
+            return
+        self.win.after_cancel(self.idle)
+        self.idle = self.win.after(IDLE_CANCEL_MS, lambda: self._finish(None))
+
     def _take_focus(self):
+        if self.done:
+            return
+        # Grabbing before the window is on screen fails, and focus goes nowhere: wait until it shows.
+        if not self.win.winfo_viewable() and self.tries < 50:
+            self.tries += 1
+            self.win.after(20, self._take_focus)
+            return
         self.win.lift()
         self.win.focus_force()
         self.canvas.focus_set()
@@ -74,6 +92,7 @@ class RegionSelector:
             pass
 
     def _press(self, e):
+        self._awake()
         self.start = (e.x, e.y)
         self.rect = self.canvas.create_rectangle(e.x, e.y, e.x, e.y, outline=ACCENT, width=2)
         self.label = self.canvas.create_text(e.x, e.y - 10, anchor="sw", fill=ACCENT,
@@ -104,6 +123,7 @@ class RegionSelector:
         if self.done:  # update() below can deliver a queued Esc/click
             return
         self.done = True
+        self.win.after_cancel(self.idle)
         try:
             self.win.grab_release()
         except tk.TclError:
