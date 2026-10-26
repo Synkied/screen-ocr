@@ -11,6 +11,7 @@ import json
 import os
 import sys
 import time
+import urllib.error
 import urllib.request
 import uuid
 from typing import Optional
@@ -28,14 +29,24 @@ def server_url(server: str) -> str:
 
 
 def _post(server: str, payload: dict) -> None:
+    headers = {"Content-Type": "application/json"}
+    key = os.environ.get("SCREEN_OCR_KEY", "").strip()
+    if key:  # kotoba files the capture in the inbox of the account this key belongs to
+        headers["Authorization"] = f"Token {key}"
     req = urllib.request.Request(
         server_url(server) + "/api/captures",
         data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-        resp.read()
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+            resp.read()
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403):
+            raise RuntimeError("the server refused the capture key (" + ("none given" if not key else "wrong or renewed")
+                               + "): copy it from kotoba's Account page and pass --key KEY or set SCREEN_OCR_KEY") from e
+        raise
 
 
 def flush(server: str) -> int:
@@ -57,7 +68,7 @@ def flush(server: str) -> int:
                 _post(server, json.load(f))
         except Exception as e:  # noqa: BLE001 - leave it for next time
             os.rename(claimed, path)
-            print(f"history server unreachable, {len(names) - sent} capture(s) waiting: {e}", file=sys.stderr)
+            print(f"could not send to the history server, {len(names) - sent} capture(s) waiting: {e}", file=sys.stderr)
             break
         os.remove(claimed)
         sent += 1

@@ -88,6 +88,10 @@ your computer (in `outbox/` next to the history) and go out with the next captur
    With `--server` (or `SCREEN_OCR_SERVER`) set, `screen-ocr --web` opens the Pi's page. On your phone, open the same
    address and use "Add to Home Screen".
 
+**Sending to kotoba** works the same way, plus the capture key from kotoba's Account page, which
+files the captures in your inbox: `screen-ocr --server http://localhost:8780 --key <key>` (or set
+`SCREEN_OCR_KEY`). Without it kotoba refuses them; they wait in the outbox and go out once the key is right.
+
 The page only listens on the Pi itself. `tailscale serve` is the only way in, so only your
 own devices can reach it, and other websites still can't read or change it.
 

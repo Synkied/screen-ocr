@@ -41,6 +41,9 @@ def main() -> None:
     parser.add_argument("--server", default=os.environ.get("SCREEN_OCR_SERVER") or None, metavar="URL",
                         help="send captures to the history at URL (e.g. https://pi.tailnet.ts.net) "
                              "instead of keeping them here; default: $SCREEN_OCR_SERVER")
+    parser.add_argument("--key", default=None, metavar="KEY",
+                        help="with --server: the capture key kotoba gives on its Account page; "
+                             "default: $SCREEN_OCR_KEY")
     parser.add_argument("--allow-host", action="append", default=[], metavar="NAME",
                         help="with --web: also answer requests for NAME, e.g. the Tailscale name "
                              "`tailscale serve` puts in front of it (repeatable)")
@@ -50,6 +53,11 @@ def main() -> None:
     if args.server:
         from .remote import server_url
         args.server = server_url(args.server)
+    if args.key:  # through the environment, so the --once processes get it without it showing in ps
+        os.environ["SCREEN_OCR_KEY"] = args.key.strip()
+    if args.server and not os.environ.get("SCREEN_OCR_KEY"):
+        print("no capture key: kotoba will refuse the captures. Copy the key from its Account page "
+              "and pass --key KEY (or set SCREEN_OCR_KEY).", file=sys.stderr)
 
     if args.web:
         if args.server:  # the history lives over there; show that one
